@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
-import { Menu, X, ShoppingBag, Phone } from 'lucide-react'
+import { Menu, X, Phone, ShoppingBag } from 'lucide-react'
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -28,19 +29,15 @@ export default function Navbar() {
         justifyContent: 'space-between',
       }}>
 
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            background: 'linear-gradient(135deg, #f5c518, #d4a900)',
-            borderRadius: '8px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '1rem',
-            color: '#1a1a2e',
-          }}>JD</div>
+        {/* LOGO */}
+        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Image
+            src="/logo.jpeg"
+            alt="JD Satisfaction Service Plus"
+            width={48}
+            height={48}
+            style={{ borderRadius: '50%', objectFit: 'cover' }}
+          />
           <div>
             <div style={{
               fontFamily: 'var(--font-display)',
@@ -55,6 +52,7 @@ export default function Navbar() {
           </div>
         </Link>
 
+        {/* DESKTOP LINKS */}
         <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }} className="hidden md:flex">
           <Link href="/" style={linkStyle}>Accueil</Link>
           <Link href="/catalogue" style={linkStyle}>Catalogue</Link>
@@ -98,6 +96,7 @@ export default function Navbar() {
           </Link>
         </div>
 
+        {/* BURGER MOBILE */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="md:hidden"
@@ -113,6 +112,7 @@ export default function Navbar() {
         </button>
       </div>
 
+      {/* MENU MOBILE */}
       {menuOpen && (
         <div style={{
           background: '#ffffff',

@@ -18,6 +18,23 @@ body {
   font-family: var(--font-body), sans-serif;
 }
 
+body::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  height: 600px;
+  background-image: url('/logo.jpeg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.025;
+  pointer-events: none;
+  z-index: 0;
+}
+
 :root {
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Inter', sans-serif;
@@ -25,7 +42,6 @@ body {
   --yellow: #f5c518;
   --yellow-light: #fff9e6;
   --yellow-dark: #d4a900;
-  --yellow-accent: #ffd700;
 
   --blue: #1a3a6b;
   --blue-mid: #2563eb;
@@ -41,10 +57,9 @@ body {
   --gray-800: #1f2937;
   --black: #0f0f1a;
 
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
-  --shadow-lg: 0 10px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05);
-  --shadow-yellow: 0 4px 20px rgba(245,197,24,0.3);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+  --shadow-lg: 0 10px 40px rgba(0,0,0,0.10);
 }
 
 ::-webkit-scrollbar { width: 6px; }
@@ -54,3 +69,9 @@ body {
 a, button { transition: all 0.2s ease; }
 
 img { display: block; max-width: 100%; }
+
+/* S'assurer que le contenu passe au-dessus du filigrane */
+main, nav, footer, section, div {
+  position: relative;
+  z-index: 1;
+}
