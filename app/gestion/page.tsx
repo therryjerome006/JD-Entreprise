@@ -732,15 +732,15 @@ export default function AdminPage() {
               ['Notes', selectedOrder.notes || '—'],
               ['Statut', statusConfig[selectedOrder.status as keyof typeof statusConfig]?.label || selectedOrder.status],
             ].map(([key, val]) => (
-              <div key={key} style={{
+              <div key={String(key)} style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 padding: '0.7rem 0',
                 borderBottom: '1px solid #f3f4f6',
                 gap: '1rem',
               }}>
-                <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontWeight: 500, flexShrink: 0 }}>{key}</span>
-                <span style={{ fontSize: '0.85rem', color: '#1f2937', textAlign: 'right' }}>{val}</span>
+                <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontWeight: 500, flexShrink: 0 }}>{String(key)}</span>
+                <span style={{ fontSize: '0.85rem', color: '#1f2937', textAlign: 'right' }}>{String(val)}</span>
               </div>
             ))}
 
