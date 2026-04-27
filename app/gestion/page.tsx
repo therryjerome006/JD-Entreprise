@@ -2,19 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { supabaseAdmin } from '@/lib/supabase'
-import { ServiceOrder, DeliveryZone } from '@/lib/types'
+import { ServiceOrder } from '@/lib/types'
 import {
   LogOut, Package, ClipboardList, TrendingUp,
   Eye, CheckCircle, Clock, AlertCircle, X,
-  ChevronDown, Download, RefreshCw
+  Download, RefreshCw
 } from 'lucide-react'
 
-const ADMIN_USER = process.env.NEXT_PUBLIC_ADMIN_USERNAME || 'tygee'
-const ADMIN_PASS = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'tygee006'
+const ADMIN_USER = 'tygee'
+const ADMIN_PASS = 'tygee006'
 
 type Tab = 'dashboard' | 'orders'
 type Status = 'tous' | 'nouveau' | 'en_cours' | 'termine'
+
+const statusConfig = {
+  nouveau: { label: 'Nouveau', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: AlertCircle },
+  en_cours: { label: 'En cours', color: '#d97706', bg: '#fefce8', border: '#fde68a', icon: Clock },
+  termine: { label: 'Termine', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: CheckCircle },
+}
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
@@ -26,7 +31,6 @@ export default function AdminPage() {
   const [filtered, setFiltered] = useState<ServiceOrder[]>([])
   const [statusFilter, setStatusFilter] = useState<Status>('tous')
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null)
-  const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
@@ -43,13 +47,27 @@ export default function AdminPage() {
 
   async function fetchOrders() {
     setRefreshing(true)
-    const { data } = await supabaseAdmin
-      .from('service_orders')
-      .select('*, delivery_zones(*)')
-      .order('created_at', { ascending: false })
-    setOrders(data || [])
-    setFiltered(data || [])
+    try {
+      const res = await fetch('/api/admin?action=orders')
+      const json = await res.json()
+      setOrders(json.data || [])
+      setFiltered(json.data || [])
+    } catch (e) {
+      console.error(e)
+    }
     setRefreshing(false)
+  }
+
+  async function updateStatus(id: string, status: string) {
+    await fetch('/api/admin', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status }),
+    })
+    await fetchOrders()
+    if (selectedOrder?.id === id) {
+      setSelectedOrder(prev => prev ? { ...prev, status: status as ServiceOrder['status'] } : null)
+    }
   }
 
   function doLogin(e: React.FormEvent) {
@@ -59,17 +77,6 @@ export default function AdminPage() {
       setLoginError('')
     } else {
       setLoginError('Identifiants incorrects.')
-    }
-  }
-
-  async function updateStatus(id: string, status: string) {
-    await supabaseAdmin
-      .from('service_orders')
-      .update({ status })
-      .eq('id', id)
-    await fetchOrders()
-    if (selectedOrder?.id === id) {
-      setSelectedOrder(prev => prev ? { ...prev, status: status as ServiceOrder['status'] } : null)
     }
   }
 
@@ -103,12 +110,6 @@ export default function AdminPage() {
     termine: orders.filter(o => o.status === 'termine').length,
   }
 
-  const statusConfig = {
-    nouveau: { label: 'Nouveau', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: AlertCircle },
-    en_cours: { label: 'En cours', color: '#d97706', bg: '#fefce8', border: '#fde68a', icon: Clock },
-    termine: { label: 'Termine', color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: CheckCircle },
-  }
-
   const inputStyle: React.CSSProperties = {
     width: '100%',
     padding: '0.85rem 1rem',
@@ -121,7 +122,7 @@ export default function AdminPage() {
     fontFamily: 'var(--font-body)',
   }
 
-  // LOGIN PAGE
+  // LOGIN
   if (!authed) {
     return (
       <div style={{
@@ -260,40 +261,30 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             onClick={fetchOrders}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: '#f9fafb',
-              border: '1px solid #e5e7eb',
-              color: '#6b7280',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.82rem',
-              fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              background: '#f9fafb', border: '1px solid #e5e7eb',
+              color: '#6b7280', padding: '0.5rem 0.9rem',
+              borderRadius: '8px', cursor: 'pointer',
+              fontSize: '0.82rem', fontWeight: 500,
+              fontFamily: 'var(--font-body)',
             }}
           >
-            <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-            Actualiser
+            <RefreshCw size={14} />
+            {refreshing ? 'Chargement...' : 'Actualiser'}
           </button>
           <button
             onClick={() => setAuthed(false)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              background: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#dc2626',
-              padding: '0.5rem 0.9rem',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '0.82rem',
-              fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: '0.4rem',
+              background: '#fef2f2', border: '1px solid #fecaca',
+              color: '#dc2626', padding: '0.5rem 0.9rem',
+              borderRadius: '8px', cursor: 'pointer',
+              fontSize: '0.82rem', fontWeight: 500,
+              fontFamily: 'var(--font-body)',
             }}
           >
             <LogOut size={14} />
@@ -314,17 +305,13 @@ export default function AdminPage() {
               key={t.id}
               onClick={() => setTab(t.id as Tab)}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.65rem 1.25rem',
-                borderRadius: '10px',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                padding: '0.65rem 1.25rem', borderRadius: '10px',
                 border: tab === t.id ? 'none' : '1px solid #e5e7eb',
                 background: tab === t.id ? '#1a3a6b' : '#ffffff',
                 color: tab === t.id ? '#ffffff' : '#6b7280',
                 fontWeight: tab === t.id ? 600 : 400,
-                fontSize: '0.88rem',
-                cursor: 'pointer',
+                fontSize: '0.88rem', cursor: 'pointer',
                 fontFamily: 'var(--font-body)',
               }}
             >
@@ -341,7 +328,6 @@ export default function AdminPage() {
               Vue d ensemble
             </h2>
 
-            {/* STATS */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
@@ -355,31 +341,21 @@ export default function AdminPage() {
                 { label: 'Terminees', value: stats.termine, color: '#16a34a', bg: '#f0fdf4', icon: CheckCircle },
               ].map(s => (
                 <div key={s.label} style={{
-                  background: '#ffffff',
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '16px',
-                  padding: '1.5rem',
+                  background: '#ffffff', border: '1px solid #e5e7eb',
+                  borderRadius: '16px', padding: '1.5rem',
                   boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                 }}>
                   <div style={{
-                    width: '44px', height: '44px',
-                    background: s.bg,
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '1rem',
-                    color: s.color,
+                    width: '44px', height: '44px', background: s.bg,
+                    borderRadius: '12px', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center',
+                    marginBottom: '1rem', color: s.color,
                   }}>
                     <s.icon size={20} />
                   </div>
                   <div style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: '2.2rem',
-                    fontWeight: 800,
-                    color: s.color,
-                    lineHeight: 1,
-                    marginBottom: '0.25rem',
+                    fontFamily: 'var(--font-display)', fontSize: '2.2rem',
+                    fontWeight: 800, color: s.color, lineHeight: 1, marginBottom: '0.25rem',
                   }}>
                     {s.value}
                   </div>
@@ -388,20 +364,14 @@ export default function AdminPage() {
               ))}
             </div>
 
-            {/* DERNIERES COMMANDES */}
             <div style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              border: '1px solid #e5e7eb',
-              overflow: 'hidden',
+              background: '#ffffff', borderRadius: '16px',
+              border: '1px solid #e5e7eb', overflow: 'hidden',
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}>
               <div style={{
-                padding: '1.25rem 1.5rem',
-                borderBottom: '1px solid #e5e7eb',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937' }}>
                   Dernieres commandes
@@ -409,14 +379,11 @@ export default function AdminPage() {
                 <button
                   onClick={() => setTab('orders')}
                   style={{
-                    background: '#f9fafb',
-                    border: '1px solid #e5e7eb',
-                    color: '#6b7280',
-                    padding: '0.4rem 0.9rem',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
+                    background: '#f9fafb', border: '1px solid #e5e7eb',
+                    color: '#6b7280', padding: '0.4rem 0.9rem',
+                    borderRadius: '8px', cursor: 'pointer',
+                    fontSize: '0.78rem', fontWeight: 500,
+                    fontFamily: 'var(--font-body)',
                   }}
                 >
                   Voir tout
@@ -428,13 +395,9 @@ export default function AdminPage() {
                     <tr style={{ background: '#f9fafb' }}>
                       {['Commande', 'Service', 'Client', 'Statut', 'Date'].map(h => (
                         <th key={h} style={{
-                          padding: '0.75rem 1rem',
-                          textAlign: 'left',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          color: '#6b7280',
-                          letterSpacing: '0.05em',
-                          textTransform: 'uppercase',
+                          padding: '0.75rem 1rem', textAlign: 'left',
+                          fontSize: '0.75rem', fontWeight: 600, color: '#6b7280',
+                          letterSpacing: '0.05em', textTransform: 'uppercase',
                           borderBottom: '1px solid #e5e7eb',
                         }}>{h}</th>
                       ))}
@@ -456,20 +419,17 @@ export default function AdminPage() {
                             <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>{order.client_phone}</div>
                           </td>
                           <td style={{ padding: '0.9rem 1rem' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              background: sc?.bg,
-                              color: sc?.color,
-                              border: `1px solid ${sc?.border}`,
-                              padding: '0.25rem 0.65rem',
-                              borderRadius: '20px',
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                            }}>
-                              {sc?.label}
-                            </span>
+                            {sc && (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                background: sc.bg, color: sc.color,
+                                border: `1px solid ${sc.border}`,
+                                padding: '0.25rem 0.65rem', borderRadius: '20px',
+                                fontSize: '0.72rem', fontWeight: 600,
+                              }}>
+                                {sc.label}
+                              </span>
+                            )}
                           </td>
                           <td style={{ padding: '0.9rem 1rem', fontSize: '0.78rem', color: '#9ca3af' }}>
                             {new Date(order.created_at).toLocaleDateString('fr-FR')}
@@ -495,33 +455,26 @@ export default function AdminPage() {
         {tab === 'orders' && (
           <div>
             <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem',
-              flexWrap: 'wrap',
-              gap: '1rem',
+              display: 'flex', justifyContent: 'space-between',
+              alignItems: 'center', marginBottom: '1.5rem',
+              flexWrap: 'wrap', gap: '1rem',
             }}>
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: '#1f2937' }}>
                 Toutes les commandes
               </h2>
               <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                {/* FILTRE */}
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   {(['tous', 'nouveau', 'en_cours', 'termine'] as Status[]).map(s => (
                     <button
                       key={s}
                       onClick={() => setStatusFilter(s)}
                       style={{
-                        padding: '0.45rem 0.9rem',
-                        borderRadius: '8px',
+                        padding: '0.45rem 0.9rem', borderRadius: '8px',
                         border: statusFilter === s ? 'none' : '1px solid #e5e7eb',
                         background: statusFilter === s ? '#1a3a6b' : '#ffffff',
                         color: statusFilter === s ? '#ffffff' : '#6b7280',
-                        fontSize: '0.78rem',
-                        fontWeight: statusFilter === s ? 600 : 400,
-                        cursor: 'pointer',
-                        fontFamily: 'var(--font-body)',
+                        fontSize: '0.78rem', fontWeight: statusFilter === s ? 600 : 400,
+                        cursor: 'pointer', fontFamily: 'var(--font-body)',
                       }}
                     >
                       {s === 'tous' ? 'Tous' : statusConfig[s as keyof typeof statusConfig]?.label}
@@ -531,17 +484,11 @@ export default function AdminPage() {
                 <button
                   onClick={exportCSV}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                    background: '#f5c518',
-                    color: '#1a1a2e',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '0.82rem',
-                    fontWeight: 600,
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    background: '#f5c518', color: '#1a1a2e',
+                    padding: '0.5rem 1rem', borderRadius: '8px',
+                    border: 'none', cursor: 'pointer',
+                    fontSize: '0.82rem', fontWeight: 600,
                     fontFamily: 'var(--font-body)',
                   }}
                 >
@@ -552,10 +499,8 @@ export default function AdminPage() {
             </div>
 
             <div style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              border: '1px solid #e5e7eb',
-              overflow: 'hidden',
+              background: '#ffffff', borderRadius: '16px',
+              border: '1px solid #e5e7eb', overflow: 'hidden',
               boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
             }}>
               <div style={{ overflowX: 'auto' }}>
@@ -564,15 +509,10 @@ export default function AdminPage() {
                     <tr style={{ background: '#f9fafb' }}>
                       {['#', 'Service', 'Client', 'Zone', 'Livraison', 'Statut', 'Date', 'Actions'].map(h => (
                         <th key={h} style={{
-                          padding: '0.75rem 1rem',
-                          textAlign: 'left',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          color: '#6b7280',
-                          letterSpacing: '0.05em',
-                          textTransform: 'uppercase',
-                          borderBottom: '1px solid #e5e7eb',
-                          whiteSpace: 'nowrap',
+                          padding: '0.75rem 1rem', textAlign: 'left',
+                          fontSize: '0.72rem', fontWeight: 600, color: '#6b7280',
+                          letterSpacing: '0.05em', textTransform: 'uppercase',
+                          borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap',
                         }}>{h}</th>
                       ))}
                     </tr>
@@ -599,21 +539,17 @@ export default function AdminPage() {
                             {order.delivery_price ? order.delivery_price + ' HTG' : '—'}
                           </td>
                           <td style={{ padding: '0.9rem 1rem' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '0.3rem',
-                              background: sc?.bg,
-                              color: sc?.color,
-                              border: `1px solid ${sc?.border}`,
-                              padding: '0.25rem 0.65rem',
-                              borderRadius: '20px',
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                            }}>
-                              {sc?.label}
-                            </span>
+                            {sc && (
+                              <span style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                background: sc.bg, color: sc.color,
+                                border: `1px solid ${sc.border}`,
+                                padding: '0.25rem 0.65rem', borderRadius: '20px',
+                                fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap',
+                              }}>
+                                {sc.label}
+                              </span>
+                            )}
                           </td>
                           <td style={{ padding: '0.9rem 1rem', fontSize: '0.78rem', color: '#9ca3af', whiteSpace: 'nowrap' }}>
                             {new Date(order.created_at).toLocaleDateString('fr-FR')}
@@ -681,28 +617,22 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* MODAL DETAIL COMMANDE */}
+      {/* MODAL */}
       {selectedOrder && (
         <div style={{
-          position: 'fixed', inset: 0,
-          background: 'rgba(0,0,0,0.5)',
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 200, padding: '1rem',
         }}>
           <div style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            padding: '2rem',
-            width: '100%',
-            maxWidth: '560px',
-            maxHeight: '85vh',
-            overflowY: 'auto',
+            background: '#ffffff', borderRadius: '20px', padding: '2rem',
+            width: '100%', maxWidth: '560px', maxHeight: '85vh', overflowY: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <div>
                 <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 800, color: '#1f2937' }}>
-                  Commande {selectedOrder.order_number}
+                  {selectedOrder.order_number}
                 </h3>
                 <p style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: '0.2rem' }}>
                   {new Date(selectedOrder.created_at).toLocaleString('fr-FR')}
@@ -722,7 +652,7 @@ export default function AdminPage() {
 
             {[
               ['Service', selectedOrder.service_type],
-              ['Type', selectedOrder.service_detail?.type || '—'],
+              ['Type', String(selectedOrder.service_detail?.type || '—')],
               ['Client', selectedOrder.client_name],
               ['Telephone', selectedOrder.client_phone],
               ['Email', selectedOrder.client_email || '—'],
@@ -733,11 +663,8 @@ export default function AdminPage() {
               ['Statut', statusConfig[selectedOrder.status as keyof typeof statusConfig]?.label || selectedOrder.status],
             ].map(([key, val]) => (
               <div key={String(key)} style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '0.7rem 0',
-                borderBottom: '1px solid #f3f4f6',
-                gap: '1rem',
+                display: 'flex', justifyContent: 'space-between',
+                padding: '0.7rem 0', borderBottom: '1px solid #f3f4f6', gap: '1rem',
               }}>
                 <span style={{ fontSize: '0.82rem', color: '#9ca3af', fontWeight: 500, flexShrink: 0 }}>{String(key)}</span>
                 <span style={{ fontSize: '0.85rem', color: '#1f2937', textAlign: 'right' }}>{String(val)}</span>
@@ -752,8 +679,7 @@ export default function AdminPage() {
                     flex: 1, background: '#fefce8', color: '#d97706',
                     border: '1px solid #fde68a', padding: '0.75rem',
                     borderRadius: '10px', cursor: 'pointer',
-                    fontWeight: 600, fontSize: '0.88rem',
-                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600, fontSize: '0.88rem', fontFamily: 'var(--font-body)',
                   }}
                 >
                   Marquer en cours
@@ -766,11 +692,10 @@ export default function AdminPage() {
                     flex: 1, background: '#f0fdf4', color: '#16a34a',
                     border: '1px solid #bbf7d0', padding: '0.75rem',
                     borderRadius: '10px', cursor: 'pointer',
-                    fontWeight: 600, fontSize: '0.88rem',
-                    fontFamily: 'var(--font-body)',
+                    fontWeight: 600, fontSize: '0.88rem', fontFamily: 'var(--font-body)',
                   }}
                 >
-                  Marquer comme termine
+                  Terminer
                 </button>
               )}
               <a
