@@ -109,7 +109,7 @@ export default function Footer() {
             </div>
             <ul style={{ listStyle: 'none' }}>
               <li style={{ color: '#9ca3af', fontSize: '0.85rem', lineHeight: 2 }}>+509 3874-2021</li>
-              <li style={{ color: '#9ca3af', fontSize: '0.85rem', lineHeight: 2 }}>Port-au-Prince, Haiti</li>
+              <li style={{ color: '#9ca3af', fontSize: '0.85rem', lineHeight: 2 }}>Jacmel, Haiti</li>
               <li style={{ color: '#9ca3af', fontSize: '0.85rem', lineHeight: 2 }}>Lun – Sam: 8h – 18h</li>
             </ul>
           </div>
