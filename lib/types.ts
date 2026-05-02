@@ -16,6 +16,7 @@ export type Product = {
   category_id: string | null
   images: string[]
   features: string[]
+  specifications: Record<string, string>
   is_active: boolean
   created_at: string
   updated_at: string
@@ -34,7 +35,7 @@ export type ServiceOrder = {
   id: string
   order_number: string
   service_type: string
-  service_detail: Record<string, unknown>
+  service_detail: Record<string, string>
   client_name: string
   client_phone: string
   client_email: string | null

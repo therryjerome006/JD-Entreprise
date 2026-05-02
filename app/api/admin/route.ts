@@ -11,7 +11,6 @@ function getAdminClient() {
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const action = searchParams.get('action')
-
   const admin = getAdminClient()
 
   if (action === 'orders') {
@@ -32,7 +31,7 @@ export async function PATCH(request: NextRequest) {
   const { id, status } = body
 
   if (!id || !status) {
-    return NextResponse.json({ error: 'Paramètres manquants' }, { status: 400 })
+    return NextResponse.json({ error: 'Parametres manquants' }, { status: 400 })
   }
 
   const admin = getAdminClient()

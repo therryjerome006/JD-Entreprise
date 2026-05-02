@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { supabase } from '@/lib/supabase'
-import { Upload, CheckCircle, Camera, Printer, Type, Palette } from 'lucide-react'
+import { Upload, CheckCircle, Camera, Printer, Type, Palette, FileText } from 'lucide-react'
 
 const ZONES = [
   { name: 'Port-au-Prince', price: 300, delay: '24h' },
@@ -37,8 +37,10 @@ export default function ServicesPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [error, setError] = useState('')
   const [orderNumber, setOrderNumber] = useState('')
+  const [fileUrl, setFileUrl] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [form, setForm] = useState({
@@ -51,25 +53,52 @@ export default function ServicesPage() {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  function buildWhatsAppMessage(num: string, hasFile: boolean) {
+  function buildWhatsAppMessage(num: string, fileLink: string) {
     const zone = selectedZone !== null ? ZONES[selectedZone] : null
     const msg =
       'Bonjour JD Satisfaction,\n\n' +
-      'Nouvelle commande de service:\n' +
-      '- Numero: ' + num + '\n' +
-      '- Service: ' + activeService + '\n' +
-      '- Type: ' + (form.type || 'Non specifie') + '\n' +
-      (form.copies !== '1' ? '- Copies: ' + form.copies + '\n' : '') +
-      (form.format ? '- Format: ' + form.format + '\n' : '') +
-      '- Client: ' + form.name + '\n' +
-      '- Telephone: ' + form.phone + '\n' +
-      (form.email ? '- Email: ' + form.email + '\n' : '') +
-      (form.address ? '- Adresse: ' + form.address + '\n' : '') +
-      (zone ? '- Zone: ' + zone.name + ' (' + zone.price + ' HTG)\n' : '') +
-      (form.notes ? '- Notes: ' + form.notes + '\n' : '') +
-      (form.description ? '- Description: ' + form.description + '\n' : '') +
-      (hasFile ? '\nUn fichier est joint a cette commande.' : '')
+      'Nouvelle commande de service\n' +
+      'Numero: ' + num + '\n' +
+      'Service: ' + activeService + '\n' +
+      'Type: ' + (form.type || 'Non specifie') + '\n' +
+      (activeService === 'impression' ? 'Copies: ' + form.copies + ' | Format: ' + form.format + '\n' : '') +
+      'Client: ' + form.name + '\n' +
+      'Tel: ' + form.phone + '\n' +
+      (form.email ? 'Email: ' + form.email + '\n' : '') +
+      (form.address ? 'Adresse: ' + form.address + '\n' : '') +
+      (zone ? 'Zone: ' + zone.name + ' (' + zone.price + ' HTG)\n' : '') +
+      (form.description ? 'Details: ' + form.description + '\n' : '') +
+      (form.notes ? 'Notes: ' + form.notes + '\n' : '') +
+      (fileLink ? '\nFichier joint: ' + fileLink : '\nAucun fichier joint.')
     return encodeURIComponent(msg)
+  }
+
+  async function uploadFileToServer(file: File): Promise<string> {
+    setUploadProgress('Upload du fichier en cours...')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('bucket', 'service-files')
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+      })
+
+      const json = await res.json()
+      setUploadProgress('')
+
+      if (json.error) {
+        console.error('Upload error:', json.error)
+        return ''
+      }
+
+      return json.url || ''
+    } catch (err) {
+      console.error('Upload exception:', err)
+      setUploadProgress('')
+      return ''
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -86,9 +115,15 @@ export default function ServicesPage() {
     }
 
     setLoading(true)
-
     const num = generateOrderNumber()
     setOrderNumber(num)
+
+    // Upload fichier via API route (service role key cote serveur)
+    let uploadedFileUrl = ''
+    if (uploadedFile) {
+      uploadedFileUrl = await uploadFileToServer(uploadedFile)
+      setFileUrl(uploadedFileUrl)
+    }
 
     const zone = ZONES[selectedZone]
 
@@ -106,21 +141,30 @@ export default function ServicesPage() {
       client_email: form.email || null,
       address: form.address || null,
       delivery_price: zone.price,
-      file_urls: [],
+      file_urls: uploadedFileUrl ? [uploadedFileUrl] : [],
       notes: form.notes || null,
       status: 'nouveau',
     }
 
-    await supabase.from('service_orders').insert(orderData)
+    const { error: dbError } = await supabase
+      .from('service_orders')
+      .insert(orderData)
+
+    if (dbError) {
+      console.error('DB error:', dbError)
+      setError('Une erreur est survenue. Veuillez reessayer.')
+      setLoading(false)
+      return
+    }
 
     setLoading(false)
     setSubmitted(true)
 
-    // Ouvrir WhatsApp avec le message de commande
-    const waMsg = buildWhatsAppMessage(num, !!uploadedFile)
+    // Ouvrir WhatsApp avec toutes les infos + lien fichier
+    const waMsg = buildWhatsAppMessage(num, uploadedFileUrl)
     setTimeout(() => {
       window.open('https://wa.me/' + WHATSAPP_SERVICE + '?text=' + waMsg, '_blank')
-    }, 800)
+    }, 600)
   }
 
   function resetForm() {
@@ -130,6 +174,8 @@ export default function ServicesPage() {
     setSubmitted(false)
     setError('')
     setOrderNumber('')
+    setFileUrl('')
+    setUploadProgress('')
   }
 
   const inputStyle: React.CSSProperties = {
@@ -151,12 +197,6 @@ export default function ServicesPage() {
     marginBottom: '1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
   }
 
-  const sectionTitle = (num: string, title: string) => (
-    <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: '#1f2937', marginBottom: '1.25rem' }}>
-      {num}. {title}
-    </h2>
-  )
-
   return (
     <>
       <Navbar />
@@ -171,7 +211,7 @@ export default function ServicesPage() {
               Nos services professionnels
             </h1>
             <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: '500px' }}>
-              Remplissez le formulaire. Votre commande sera envoyee directement sur notre WhatsApp avec toutes les informations necessaires.
+              Remplissez le formulaire et joignez votre fichier. Tout sera enregistre et accessible dans notre tableau de bord.
             </p>
           </div>
         </section>
@@ -186,50 +226,66 @@ export default function ServicesPage() {
               <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 800, color: '#1f2937', marginBottom: '0.5rem' }}>
                 Commande envoyee !
               </h2>
-              <div style={{ display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.4rem 1.25rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem' }}>
+              <div style={{ display: 'inline-block', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '0.4rem 1.25rem', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 700, marginBottom: '1.5rem' }}>
                 {orderNumber}
               </div>
-              <p style={{ color: '#6b7280', fontSize: '0.92rem', lineHeight: 1.7, marginBottom: '1rem', maxWidth: '420px', margin: '0 auto 1rem' }}>
-                Votre commande a ete enregistree et un message WhatsApp a ete prepare.
+
+              <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '1.25rem', marginBottom: '1.5rem', textAlign: 'left', maxWidth: '460px', margin: '0 auto 1.5rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1f2937', marginBottom: '0.75rem' }}>
+                  Recapitulatif
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#16a34a', fontWeight: 500 }}>
+                    <CheckCircle size={14} />
+                    Commande enregistree dans le tableau de bord
+                  </div>
+                  {fileUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#16a34a', fontWeight: 500 }}>
+                      <CheckCircle size={14} />
+                      Fichier uploade et accessible par notre equipe
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#9ca3af' }}>
+                      <FileText size={14} />
+                      Aucun fichier joint
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: '#16a34a', fontWeight: 500 }}>
+                    <CheckCircle size={14} />
+                    Message WhatsApp prepare
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ color: '#6b7280', fontSize: '0.88rem', lineHeight: 1.7, marginBottom: '2rem', maxWidth: '420px', margin: '0 auto 2rem' }}>
+                Si WhatsApp ne s est pas ouvert automatiquement, cliquez ci-dessous.
               </p>
 
-              {uploadedFile && (
-                <div style={{ background: '#fefce8', border: '1px solid #fde68a', borderRadius: '12px', padding: '1rem 1.5rem', marginBottom: '1.5rem', maxWidth: '420px', margin: '0 auto 1.5rem' }}>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#92400e', marginBottom: '0.5rem' }}>
-                    Fichier joint a envoyer
-                  </div>
-                  <div style={{ fontSize: '0.82rem', color: '#78350f', marginBottom: '0.75rem' }}>
-                    Apres avoir envoye le message WhatsApp, envoyez aussi votre fichier <strong>{uploadedFile.name}</strong> dans la meme conversation en mentionnant votre numero de commande.
-                  </div>
-                  <a
-                    href={'https://wa.me/' + WHATSAPP_SERVICE + '?text=' + encodeURIComponent('Bonjour, voici le fichier pour ma commande ' + orderNumber)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'inline-block', background: '#f5c518', color: '#1a1a2e', padding: '0.6rem 1.25rem', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', textDecoration: 'none' }}
-                  >
-                    Envoyer le fichier sur WhatsApp
-                  </a>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', marginTop: '1.5rem' }}>
-                <button onClick={resetForm} style={{ background: '#f5c518', color: '#1a1a2e', padding: '0.85rem 2rem', borderRadius: '10px', border: 'none', fontWeight: 700, fontSize: '0.92rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <a
+                  href={'https://wa.me/' + WHATSAPP_SERVICE + '?text=' + buildWhatsAppMessage(orderNumber, fileUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ background: '#f5c518', color: '#1a1a2e', padding: '0.85rem 2rem', borderRadius: '10px', fontWeight: 700, fontSize: '0.92rem', textDecoration: 'none', display: 'inline-block' }}
+                >
+                  Ouvrir WhatsApp
+                </a>
+                <button onClick={resetForm} style={{ background: '#1a3a6b', color: '#ffffff', padding: '0.85rem 2rem', borderRadius: '10px', border: 'none', fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                   Nouvelle commande
                 </button>
-                <a href={'https://wa.me/' + WHATSAPP_SERVICE} target="_blank" rel="noopener noreferrer" style={{ background: '#1a3a6b', color: '#ffffff', padding: '0.85rem 2rem', borderRadius: '10px', fontWeight: 600, fontSize: '0.92rem', textDecoration: 'none', display: 'inline-block' }}>
-                  Contacter sur WhatsApp
-                </a>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
 
-              {/* CHOIX SERVICE */}
+              {/* 1. CHOIX SERVICE */}
               <div style={cardStyle}>
-                {sectionTitle('1', 'Choisissez votre service')}
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: '#1f2937', marginBottom: '1.25rem' }}>
+                  1. Choisissez votre service
+                </h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                   {SERVICES.map(svc => (
-                    <button key={svc.id} type="button" onClick={() => setActiveService(svc.id)} style={{ background: activeService === svc.id ? svc.color : '#f9fafb', border: activeService === svc.id ? `2px solid ${svc.border}` : '2px solid #e5e7eb', borderRadius: '14px', padding: '1.25rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
+                    <button key={svc.id} type="button" onClick={() => { setActiveService(svc.id); setUploadedFile(null) }} style={{ background: activeService === svc.id ? svc.color : '#f9fafb', border: activeService === svc.id ? '2px solid ' + svc.border : '2px solid #e5e7eb', borderRadius: '14px', padding: '1.25rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s' }}>
                       <div style={{ width: '40px', height: '40px', background: '#ffffff', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.75rem', border: '1px solid #e5e7eb', color: activeService === svc.id ? svc.text : '#9ca3af' }}>
                         <svc.icon size={18} />
                       </div>
@@ -240,9 +296,11 @@ export default function ServicesPage() {
                 </div>
               </div>
 
-              {/* DETAILS SERVICE */}
+              {/* 2. DETAILS */}
               <div style={cardStyle}>
-                {sectionTitle('2', 'Details de votre commande')}
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: '#1f2937', marginBottom: '1.25rem' }}>
+                  2. Details de votre commande
+                </h2>
 
                 {activeService === 'impression' && (
                   <div style={{ display: 'grid', gap: '1rem' }}>
@@ -271,19 +329,29 @@ export default function ServicesPage() {
                       <label style={labelStyle}>Nombre de copies</label>
                       <input type="number" name="copies" min="1" value={form.copies} onChange={handleChange} style={inputStyle} />
                     </div>
-                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '1rem', fontSize: '0.82rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-                      Apres validation, vous pourrez envoyer votre fichier directement sur WhatsApp avec votre numero de commande.
-                    </div>
                     <div>
-                      <label style={labelStyle}>Fichier a imprimer (optionnel — peut etre envoye sur WhatsApp)</label>
-                      <div onClick={() => fileRef.current?.click()} style={{ border: '2px dashed #e5e7eb', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: '#f9fafb' }}>
-                        <Upload size={22} style={{ color: '#9ca3af', margin: '0 auto 0.5rem' }} />
-                        <div style={{ fontSize: '0.85rem', color: '#4b5563', fontWeight: 500 }}>
-                          {uploadedFile ? uploadedFile.name : 'Cliquez pour choisir un fichier'}
+                      <label style={labelStyle}>
+                        Fichier a imprimer
+                        <span style={{ color: '#9ca3af', fontWeight: 400, marginLeft: '0.5rem' }}>(optionnel — peut aussi etre envoye par WhatsApp)</span>
+                      </label>
+                      <div
+                        onClick={() => fileRef.current?.click()}
+                        style={{ border: uploadedFile ? '2px solid #bfdbfe' : '2px dashed #e5e7eb', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: uploadedFile ? '#eff6ff' : '#f9fafb', transition: 'all 0.2s' }}
+                      >
+                        <Upload size={22} style={{ color: uploadedFile ? '#2563eb' : '#9ca3af', margin: '0 auto 0.5rem' }} />
+                        <div style={{ fontSize: '0.85rem', color: uploadedFile ? '#1d4ed8' : '#4b5563', fontWeight: 600 }}>
+                          {uploadedFile ? uploadedFile.name : 'Cliquez pour choisir votre fichier'}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>PDF, Word, JPG, PNG</div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                          PDF, Word, JPG, PNG — Sera accessible dans notre tableau de bord
+                        </div>
                         <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={e => setUploadedFile(e.target.files?.[0] || null)} />
                       </div>
+                      {uploadedFile && (
+                        <button type="button" onClick={() => setUploadedFile(null)} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                          Supprimer le fichier
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -306,9 +374,30 @@ export default function ServicesPage() {
                       <div>
                         <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', marginBottom: '0.25rem' }}>Photo du manuscrit requise</div>
                         <div style={{ fontSize: '0.78rem', color: '#78350f', lineHeight: 1.5 }}>
-                          Apres validation, envoyez la photo de votre manuscrit directement sur WhatsApp au numero de service avec votre numero de commande. Assurez-vous que le texte soit bien lisible et bien eclaire.
+                          Prenez une photo claire de votre texte manuscrit. Elle sera sauvegardee et accessible directement dans notre tableau de bord pour traitement.
                         </div>
                       </div>
+                    </div>
+                    <div>
+                      <label style={labelStyle}>Photo du manuscrit *</label>
+                      <div
+                        onClick={() => fileRef.current?.click()}
+                        style={{ border: uploadedFile ? '2px solid #fde68a' : '2px dashed #fde68a', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: uploadedFile ? '#fefce8' : '#fffdf0', transition: 'all 0.2s' }}
+                      >
+                        <Camera size={22} style={{ color: uploadedFile ? '#d97706' : '#fbbf24', margin: '0 auto 0.5rem' }} />
+                        <div style={{ fontSize: '0.85rem', color: uploadedFile ? '#92400e' : '#4b5563', fontWeight: 600 }}>
+                          {uploadedFile ? uploadedFile.name : 'Cliquez pour ajouter la photo'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>
+                          JPG, PNG — Bonne resolution, texte lisible obligatoire
+                        </div>
+                        <input ref={fileRef} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={e => setUploadedFile(e.target.files?.[0] || null)} />
+                      </div>
+                      {uploadedFile && (
+                        <button type="button" onClick={() => setUploadedFile(null)} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                          Supprimer la photo
+                        </button>
+                      )}
                     </div>
                     <div>
                       <label style={labelStyle}>Instructions particulieres</label>
@@ -333,18 +422,39 @@ export default function ServicesPage() {
                     </div>
                     <div>
                       <label style={labelStyle}>Description du projet</label>
-                      <textarea name="description" value={form.description} onChange={handleChange} rows={4} placeholder="Decrivez votre projet: couleurs, style, message..." style={{ ...inputStyle, resize: 'vertical' }} />
+                      <textarea name="description" value={form.description} onChange={handleChange} rows={4} placeholder="Decrivez votre projet: couleurs, style, message a transmettre..." style={{ ...inputStyle, resize: 'vertical' }} />
                     </div>
-                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '1rem', fontSize: '0.82rem', color: '#1d4ed8', lineHeight: 1.6 }}>
-                      Apres validation, vous pourrez envoyer vos fichiers de reference (logo existant, photos) directement sur WhatsApp avec votre numero de commande.
+                    <div>
+                      <label style={labelStyle}>
+                        Fichiers de reference
+                        <span style={{ color: '#9ca3af', fontWeight: 400, marginLeft: '0.5rem' }}>(optionnel)</span>
+                      </label>
+                      <div
+                        onClick={() => fileRef.current?.click()}
+                        style={{ border: uploadedFile ? '2px solid #e9d5ff' : '2px dashed #e9d5ff', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', cursor: 'pointer', background: uploadedFile ? '#fdf4ff' : '#fdfaff', transition: 'all 0.2s' }}
+                      >
+                        <Upload size={22} style={{ color: uploadedFile ? '#7e22ce' : '#c4b5fd', margin: '0 auto 0.5rem' }} />
+                        <div style={{ fontSize: '0.85rem', color: uploadedFile ? '#7e22ce' : '#4b5563', fontWeight: 600 }}>
+                          {uploadedFile ? uploadedFile.name : 'Logo existant, photos, references'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>JPG, PNG, PDF</div>
+                        <input ref={fileRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }} onChange={e => setUploadedFile(e.target.files?.[0] || null)} />
+                      </div>
+                      {uploadedFile && (
+                        <button type="button" onClick={() => setUploadedFile(null)} style={{ marginTop: '0.5rem', background: 'none', border: 'none', color: '#dc2626', fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                          Supprimer le fichier
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* COORDONNEES */}
+              {/* 3. COORDONNEES */}
               <div style={cardStyle}>
-                {sectionTitle('3', 'Vos coordonnees')}
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: '#1f2937', marginBottom: '1.25rem' }}>
+                  3. Vos coordonnees
+                </h2>
                 <div style={{ display: 'grid', gap: '1rem' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
@@ -362,22 +472,24 @@ export default function ServicesPage() {
                   </div>
                   <div>
                     <label style={labelStyle}>Notes supplementaires</label>
-                    <textarea name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Toute information utile..." style={{ ...inputStyle, resize: 'vertical' }} />
+                    <textarea name="notes" value={form.notes} onChange={handleChange} rows={2} placeholder="Toute information utile pour votre commande..." style={{ ...inputStyle, resize: 'vertical' }} />
                   </div>
                 </div>
               </div>
 
-              {/* LIVRAISON */}
+              {/* 4. LIVRAISON */}
               <div style={cardStyle}>
-                {sectionTitle('4', 'Zone de livraison')}
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 700, color: '#1f2937', marginBottom: '1.25rem' }}>
+                  4. Zone de livraison
+                </h2>
                 <div>
                   <label style={labelStyle}>Adresse complete</label>
-                  <input name="address" value={form.address} onChange={handleChange} placeholder="Rue, numero, quartier..." style={{ ...inputStyle, marginBottom: '1rem' }} />
+                  <input name="address" value={form.address} onChange={handleChange} placeholder="Rue, numero, quartier..." style={{ ...inputStyle, marginBottom: '1.25rem' }} />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                   {ZONES.map((zone, i) => (
                     <button key={zone.name} type="button" onClick={() => setSelectedZone(i)} style={{ border: selectedZone === i ? '2px solid #1a3a6b' : '1px solid #e5e7eb', borderRadius: '12px', padding: '0.85rem', background: selectedZone === i ? '#eff6ff' : '#f9fafb', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: selectedZone === i ? '#1a3a6b' : '#1f2937', marginBottom: '0.2rem' }}>{zone.name}</div>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600, color: selectedZone === i ? '#1a3a6b' : '#1f2937', marginBottom: '0.2rem' }}>{zone.name}</div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 700, color: selectedZone === i ? '#1a3a6b' : '#374151' }}>{zone.price} HTG</div>
                       <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>{zone.delay}</div>
                     </button>
@@ -386,7 +498,7 @@ export default function ServicesPage() {
                 {selectedZone !== null && (
                   <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.88rem', color: '#1d4ed8', fontWeight: 500 }}>
-                      Livraison — {ZONES[selectedZone].name} ({ZONES[selectedZone].delay})
+                      {ZONES[selectedZone].name} — {ZONES[selectedZone].delay}
                     </span>
                     <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: '#1a3a6b' }}>
                       {ZONES[selectedZone].price} HTG
@@ -401,9 +513,21 @@ export default function ServicesPage() {
                 </div>
               )}
 
-              <button type="submit" disabled={loading} style={{ width: '100%', background: loading ? '#e5e7eb' : '#f5c518', color: loading ? '#9ca3af' : '#1a1a2e', padding: '1.1rem 2rem', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', boxShadow: loading ? 'none' : '0 4px 20px rgba(245,197,24,0.35)', transition: 'all 0.2s', fontFamily: 'var(--font-body)' }}>
-                {loading ? 'Envoi en cours...' : 'Envoyer ma commande via WhatsApp'}
+              {uploadProgress && (
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', padding: '1rem', marginBottom: '1rem', color: '#1d4ed8', fontSize: '0.88rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: '18px', height: '18px', border: '2px solid #bfdbfe', borderTopColor: '#2563eb', borderRadius: '50%', flexShrink: 0 }} />
+                  {uploadProgress}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{ width: '100%', background: loading ? '#e5e7eb' : '#f5c518', color: loading ? '#9ca3af' : '#1a1a2e', padding: '1.1rem 2rem', borderRadius: '12px', border: 'none', fontWeight: 700, fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer', boxShadow: loading ? 'none' : '0 4px 20px rgba(245,197,24,0.35)', transition: 'all 0.2s', fontFamily: 'var(--font-body)' }}
+              >
+                {loading ? (uploadProgress || 'Traitement en cours...') : 'Envoyer ma commande'}
               </button>
+
             </form>
           )}
         </section>
