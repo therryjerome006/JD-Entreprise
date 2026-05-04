@@ -7,7 +7,7 @@ import {
   LogOut, Package, ClipboardList, TrendingUp,
   Eye, CheckCircle, Clock, AlertCircle, X,
   Download, RefreshCw, Plus, Pencil, Trash2,
-  Upload, ImageIcon, ToggleLeft, ToggleRight
+  Upload, ImageIcon, ToggleLeft, ToggleRight, FileDown
 } from 'lucide-react'
 
 const ADMIN_USER = 'tygee'
@@ -78,14 +78,12 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState('')
   const [tab, setTab] = useState<Tab>('dashboard')
 
-  // Orders
   const [orders, setOrders] = useState<ServiceOrder[]>([])
   const [filtered, setFiltered] = useState<ServiceOrder[]>([])
   const [statusFilter, setStatusFilter] = useState<Status>('tous')
   const [selectedOrder, setSelectedOrder] = useState<ServiceOrder | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Products
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [showProductForm, setShowProductForm] = useState(false)
@@ -346,7 +344,6 @@ export default function AdminPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f9fafb' }}>
 
-      {/* TOPBAR */}
       <div style={{
         background: '#ffffff', borderBottom: '1px solid #e5e7eb',
         padding: '0 2rem', height: '64px',
@@ -376,7 +373,6 @@ export default function AdminPage() {
 
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
 
-        {/* TABS */}
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           {[
             { id: 'dashboard', label: 'Tableau de bord', icon: TrendingUp },
@@ -398,7 +394,6 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* DASHBOARD */}
         {tab === 'dashboard' && (
           <div>
             <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 800, color: '#1f2937', marginBottom: '1.5rem' }}>
@@ -436,7 +431,6 @@ export default function AdminPage() {
                 <div style={{ fontSize: '0.82rem', color: '#6b7280', fontWeight: 500 }}>Produits actifs</div>
               </div>
             </div>
-
             <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e7eb', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
               <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ fontWeight: 700, fontSize: '1rem', color: '#1f2937' }}>Dernieres commandes</h3>
@@ -481,7 +475,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ORDERS TAB */}
         {tab === 'orders' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -505,7 +498,7 @@ export default function AdminPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ background: '#f9fafb' }}>
-                      {['#', 'Service', 'Client', 'Zone', 'Livraison', 'Statut', 'Date', 'Actions'].map(h => (
+                      {['#', 'Service', 'Client', 'Zone', 'Livraison', 'Fichier', 'Statut', 'Date', 'Actions'].map(h => (
                         <th key={h} style={{ padding: '0.75rem 1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 600, color: '#6b7280', letterSpacing: '0.05em', textTransform: 'uppercase', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -513,6 +506,7 @@ export default function AdminPage() {
                   <tbody>
                     {filtered.map(order => {
                       const sc = statusConfig[order.status as keyof typeof statusConfig]
+                      const hasFiles = Array.isArray(order.file_urls) && order.file_urls.length > 0
                       return (
                         <tr key={order.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '0.9rem 1rem', fontSize: '0.78rem', fontWeight: 700, color: '#1a3a6b', whiteSpace: 'nowrap' }}>{order.order_number}</td>
@@ -523,6 +517,15 @@ export default function AdminPage() {
                           </td>
                           <td style={{ padding: '0.9rem 1rem', fontSize: '0.82rem', color: '#6b7280', whiteSpace: 'nowrap' }}>{order.delivery_zones?.name || '—'}</td>
                           <td style={{ padding: '0.9rem 1rem', fontSize: '0.85rem', fontWeight: 600, color: '#1f2937', whiteSpace: 'nowrap' }}>{order.delivery_price ? order.delivery_price + ' HTG' : '—'}</td>
+                          <td style={{ padding: '0.9rem 1rem' }}>
+                            {hasFiles ? (
+                              <a href={(order.file_urls as string[])[0]} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', padding: '0.3rem 0.6rem', borderRadius: '6px', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                <FileDown size={12} /> Fichier
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#d1d5db' }}>—</span>
+                            )}
+                          </td>
                           <td style={{ padding: '0.9rem 1rem' }}>
                             {sc && <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: sc.bg, color: sc.color, border: `1px solid ${sc.border}`, padding: '0.25rem 0.65rem', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{sc.label}</span>}
                           </td>
@@ -544,7 +547,7 @@ export default function AdminPage() {
                       )
                     })}
                     {filtered.length === 0 && (
-                      <tr><td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>Aucune commande trouvee</td></tr>
+                      <tr><td colSpan={9} style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af', fontSize: '0.9rem' }}>Aucune commande trouvee</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -553,7 +556,6 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* PRODUCTS TAB */}
         {tab === 'products' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -565,7 +567,6 @@ export default function AdminPage() {
                 Ajouter un produit
               </button>
             </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
               {products.map(p => (
                 <div key={p.id} style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
@@ -582,15 +583,9 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <div style={{ padding: '1rem' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>
-                      {p.categories?.name}
-                    </div>
-                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1f2937', marginBottom: '0.25rem', lineHeight: 1.3 }}>
-                      {p.name}
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: '#1a3a6b', marginBottom: '1rem' }}>
-                      {p.price.toLocaleString()} HTG
-                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem' }}>{p.categories?.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#1f2937', marginBottom: '0.25rem', lineHeight: 1.3 }}>{p.name}</div>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.2rem', fontWeight: 800, color: '#1a3a6b', marginBottom: '1rem' }}>{p.price.toLocaleString()} HTG</div>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                       <button onClick={() => openEditProduct(p)} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', background: '#eff6ff', color: '#2563eb', border: 'none', padding: '0.5rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 500, fontFamily: 'var(--font-body)' }}>
                         <Pencil size={13} /> Modifier
@@ -633,6 +628,7 @@ export default function AdminPage() {
                 <X size={16} style={{ color: '#6b7280' }} />
               </button>
             </div>
+
             {[
               ['Service', selectedOrder.service_type],
               ['Type', String(selectedOrder.service_detail?.type || '—')],
@@ -650,6 +646,39 @@ export default function AdminPage() {
                 <span style={{ fontSize: '0.85rem', color: '#1f2937', textAlign: 'right' }}>{String(val)}</span>
               </div>
             ))}
+
+            {/* FICHIERS JOINTS — SECTION CRITIQUE */}
+            <div style={{ marginTop: '1.25rem', padding: '1rem', background: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '0.75rem' }}>
+                Fichiers joints
+              </div>
+              {Array.isArray(selectedOrder.file_urls) && selectedOrder.file_urls.length > 0 ? (
+                (selectedOrder.file_urls as string[]).map((url: string, i: number) => (
+                  <a
+                    key={i}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.6rem',
+                      background: '#eff6ff', border: '1px solid #bfdbfe',
+                      borderRadius: '8px', padding: '0.75rem 1rem',
+                      textDecoration: 'none', color: '#1d4ed8',
+                      fontSize: '0.85rem', fontWeight: 600,
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <FileDown size={16} />
+                    Telecharger le fichier {i + 1}
+                  </a>
+                ))
+              ) : (
+                <div style={{ fontSize: '0.82rem', color: '#9ca3af', fontStyle: 'italic' }}>
+                  Aucun fichier joint pour cette commande
+                </div>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
               {selectedOrder.status === 'nouveau' && (
                 <button onClick={() => updateStatus(selectedOrder.id, 'en_cours')} style={{ flex: 1, background: '#fefce8', color: '#d97706', border: '1px solid #fde68a', padding: '0.75rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', fontFamily: 'var(--font-body)' }}>
@@ -673,8 +702,6 @@ export default function AdminPage() {
       {showProductForm && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '1rem' }}>
           <div style={{ background: '#ffffff', borderRadius: '20px', width: '100%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-
-            {/* Header */}
             <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: '#ffffff', zIndex: 1, borderRadius: '20px 20px 0 0' }}>
               <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', fontWeight: 800, color: '#1f2937' }}>
                 {editingProduct ? 'Modifier le produit' : 'Ajouter un produit'}
@@ -683,16 +710,12 @@ export default function AdminPage() {
                 <X size={16} style={{ color: '#6b7280' }} />
               </button>
             </div>
-
             <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
               {productError && (
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '0.75rem 1rem', color: '#dc2626', fontSize: '0.85rem' }}>
                   {productError}
                 </div>
               )}
-
-              {/* Infos de base */}
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #f5c518' }}>
                   Informations de base
@@ -700,7 +723,7 @@ export default function AdminPage() {
                 <div style={{ display: 'grid', gap: '1rem' }}>
                   <div>
                     <label style={labelStyle}>Nom du produit *</label>
-                    <input value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: iPhone 14 Pro, Crème hydratante..." style={inputStyle} />
+                    <input value={productForm.name} onChange={e => setProductForm(p => ({ ...p, name: e.target.value }))} placeholder="Ex: iPhone 14 Pro..." style={inputStyle} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                     <div>
@@ -729,8 +752,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               </div>
-
-              {/* Photos */}
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #f5c518' }}>
                   Photos du produit
@@ -758,8 +779,6 @@ export default function AdminPage() {
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#9ca3af' }}>La premiere photo sera l image principale du produit</div>
               </div>
-
-              {/* Specifications par catégorie */}
               {productForm.category_id && getSpecFields().length > 0 && (
                 <div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #f5c518' }}>
@@ -769,19 +788,12 @@ export default function AdminPage() {
                     {getSpecFields().map(field => (
                       <div key={field.label}>
                         <label style={labelStyle}>{field.label}</label>
-                        <input
-                          value={productForm.specifications[field.label] || ''}
-                          onChange={e => setProductForm(p => ({ ...p, specifications: { ...p.specifications, [field.label]: e.target.value } }))}
-                          placeholder={field.placeholder}
-                          style={inputStyle}
-                        />
+                        <input value={productForm.specifications[field.label] || ''} onChange={e => setProductForm(p => ({ ...p, specifications: { ...p.specifications, [field.label]: e.target.value } }))} placeholder={field.placeholder} style={inputStyle} />
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
-              {/* Caracteristiques */}
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #f5c518' }}>
                   Points forts du produit
@@ -789,16 +801,7 @@ export default function AdminPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {productForm.features.map((f, i) => (
                     <div key={i} style={{ display: 'flex', gap: '0.5rem' }}>
-                      <input
-                        value={f}
-                        onChange={e => {
-                          const arr = [...productForm.features]
-                          arr[i] = e.target.value
-                          setProductForm(p => ({ ...p, features: arr }))
-                        }}
-                        placeholder={`Point fort ${i + 1}...`}
-                        style={{ ...inputStyle }}
-                      />
+                      <input value={f} onChange={e => { const arr = [...productForm.features]; arr[i] = e.target.value; setProductForm(p => ({ ...p, features: arr })) }} placeholder={`Point fort ${i + 1}...`} style={inputStyle} />
                       <button type="button" onClick={() => setProductForm(p => ({ ...p, features: p.features.filter((_, fi) => fi !== i) }))} style={{ background: '#fef2f2', border: 'none', borderRadius: '8px', padding: '0 0.75rem', cursor: 'pointer', color: '#dc2626', flexShrink: 0 }}>
                         <X size={14} />
                       </button>
@@ -809,22 +812,12 @@ export default function AdminPage() {
                   </button>
                 </div>
               </div>
-
-              {/* Notes supplementaires */}
               <div>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '1rem', paddingBottom: '0.5rem', borderBottom: '2px solid #f5c518' }}>
                   Notes supplementaires
                 </div>
-                <textarea
-                  value={productForm.notes}
-                  onChange={e => setProductForm(p => ({ ...p, notes: e.target.value }))}
-                  placeholder="Informations supplementaires, conditions, disponibilite, variantes..."
-                  rows={3}
-                  style={{ ...inputStyle, resize: 'vertical' }}
-                />
+                <textarea value={productForm.notes} onChange={e => setProductForm(p => ({ ...p, notes: e.target.value }))} placeholder="Informations supplementaires, conditions, disponibilite, variantes..." rows={3} style={{ ...inputStyle, resize: 'vertical' }} />
               </div>
-
-              {/* Boutons */}
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <button onClick={() => setShowProductForm(false)} style={{ flex: 1, background: '#f9fafb', color: '#6b7280', border: '1px solid #e5e7eb', padding: '0.9rem', borderRadius: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.92rem', fontFamily: 'var(--font-body)' }}>
                   Annuler
@@ -838,7 +831,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* CONFIRM DELETE */}
       {confirmDelete && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '1rem' }}>
           <div style={{ background: '#ffffff', borderRadius: '16px', padding: '2rem', maxWidth: '380px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
