@@ -1,184 +1,139 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import Image from 'next/image'
-import { useState } from 'react'
-import { Menu, X, Phone, ShoppingBag } from 'lucide-react'
+import Link from "next/link";
+import { useAuthStore } from "@/lib/store";
+import { Trophy, Users, Shield, LogOut, Bell, Home, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export default function Navbar() {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const { role, player, logout } = useAuthStore();
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (role === "player" && player) {
+      fetch(`/api/notifications?playerId=${player.id}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            setUnreadCount(data.filter((n: { read: number }) => !n.read).length);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [role, player]);
 
   return (
-    <nav style={{
-      position: 'fixed',
-      top: 0,
-      width: '100%',
-      zIndex: 100,
-      background: 'rgba(255,255,255,0.97)',
-      backdropFilter: 'blur(12px)',
-      borderBottom: '1px solid #e5e7eb',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-    }}>
-      <div style={{
-        maxWidth: '1200px',
-        margin: '0 auto',
-        padding: '0 2rem',
-        height: '68px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-      }}>
-
-        {/* LOGO */}
-        <Link href="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Image
-            src="/logo.jpeg"
-            alt="JD Satisfaction Service Plus"
-            width={48}
-            height={48}
-            style={{ borderRadius: '50%', objectFit: 'cover' }}
-          />
-          <div>
-            <div style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              color: '#1a3a6b',
-              lineHeight: 1.1,
-            }}>JD Satisfaction</div>
-            <div style={{ fontSize: '0.65rem', color: '#9ca3af', letterSpacing: '0.05em' }}>
-              SERVICE PLUS
-            </div>
-          </div>
-        </Link>
-
-        {/* DESKTOP LINKS */}
-        <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }} className="hidden md:flex">
-          <Link href="/" style={linkStyle}>Accueil</Link>
-          <Link href="/catalogue" style={linkStyle}>Catalogue</Link>
-          <Link href="/services" style={linkStyle}>Services</Link>
-          <a
-            href="https://wa.me/50938742021"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              marginLeft: '0.5rem',
-              background: '#1a3a6b',
-              color: '#ffffff',
-              padding: '0.5rem 1rem',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              fontWeight: 500,
-              textDecoration: 'none',
-            }}
-          >
-            <Phone size={14} />
-            Nous contacter
-          </a>
-          <Link href="/catalogue" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            marginLeft: '0.25rem',
-            background: '#f5c518',
-            color: '#1a1a2e',
-            padding: '0.5rem 1.1rem',
-            borderRadius: '8px',
-            fontSize: '0.82rem',
-            fontWeight: 600,
-            textDecoration: 'none',
-          }}>
-            <ShoppingBag size={14} />
-            Commander
+    <nav className="bg-[#1e293b] border-b border-[#334155] sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          <Link href="/" className="flex items-center gap-2 text-white font-bold text-xl">
+            <Trophy className="w-6 h-6 text-blue-400" />
+            <span>JD Championship</span>
           </Link>
-        </div>
 
-        {/* BURGER MOBILE */}
-        <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden"
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#1a3a6b',
-            cursor: 'pointer',
-            padding: '0.5rem',
-          }}
-        >
-          {menuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
-      </div>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="md:hidden text-gray-300 hover:text-white p-2"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={menuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16M4 18h16"} />
+            </svg>
+          </button>
 
-      {/* MENU MOBILE */}
-      {menuOpen && (
-        <div style={{
-          background: '#ffffff',
-          borderTop: '1px solid #e5e7eb',
-          padding: '1rem 2rem 1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-        }}>
-          <Link href="/" style={mobileLinkStyle} onClick={() => setMenuOpen(false)}>Accueil</Link>
-          <Link href="/catalogue" style={mobileLinkStyle} onClick={() => setMenuOpen(false)}>Catalogue</Link>
-          <Link href="/services" style={mobileLinkStyle} onClick={() => setMenuOpen(false)}>Services</Link>
-          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <a
-              href="https://wa.me/50938742021"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                background: '#1a3a6b',
-                color: '#ffffff',
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                textDecoration: 'none',
-                textAlign: 'center',
-              }}
-              onClick={() => setMenuOpen(false)}
-            >Nous contacter</a>
+          <div className={`${menuOpen ? "flex" : "hidden"} md:flex flex-col md:flex-row absolute md:relative top-16 md:top-0 left-0 w-full md:w-auto bg-[#1e293b] md:bg-transparent border-b md:border-0 border-[#334155] items-start md:items-center gap-1 md:gap-2 p-4 md:p-0`}>
             <Link
-              href="/catalogue"
-              style={{
-                background: '#f5c518',
-                color: '#1a1a2e',
-                padding: '0.75rem 1rem',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                textDecoration: 'none',
-                textAlign: 'center',
-              }}
+              href="/"
               onClick={() => setMenuOpen(false)}
-            >Commander</Link>
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[#334155] w-full md:w-auto"
+            >
+              <Home className="w-4 h-4" />
+              Accueil
+            </Link>
+            <Link
+              href="/championships"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[#334155] w-full md:w-auto"
+            >
+              <Trophy className="w-4 h-4" />
+              Championnats
+            </Link>
+            <Link
+              href="/teams"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[#334155] w-full md:w-auto"
+            >
+              <Users className="w-4 h-4" />
+              Équipes
+            </Link>
+
+            {role === "visitor" && (
+              <>
+                <Link
+                  href="/register"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-blue-400 hover:text-blue-300 hover:bg-[#334155] w-full md:w-auto"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Inscription
+                </Link>
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700 w-full md:w-auto"
+                >
+                  Connexion
+                </Link>
+              </>
+            )}
+
+            {role === "player" && (
+              <>
+                <Link
+                  href="/player"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-[#334155] relative w-full md:w-auto"
+                >
+                  <Bell className="w-4 h-4" />
+                  Dashboard
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 md:relative md:top-0 md:right-0 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
+                <button
+                  onClick={() => { logout(); setMenuOpen(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-[#334155] w-full md:w-auto"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Déconnexion
+                </button>
+              </>
+            )}
+
+            {role === "admin" && (
+              <>
+                <Link
+                  href="/admin"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-yellow-400 hover:text-yellow-300 hover:bg-[#334155] w-full md:w-auto"
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </Link>
+                <button
+                  onClick={() => { logout(); setMenuOpen(false); }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-[#334155] w-full md:w-auto"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Déconnexion
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </nav>
-  )
-}
-
-const linkStyle: React.CSSProperties = {
-  color: '#4b5563',
-  textDecoration: 'none',
-  fontSize: '0.88rem',
-  fontWeight: 500,
-  padding: '0.5rem 0.75rem',
-  borderRadius: '6px',
-}
-
-const mobileLinkStyle: React.CSSProperties = {
-  color: '#1f2937',
-  textDecoration: 'none',
-  fontSize: '0.95rem',
-  fontWeight: 500,
-  padding: '0.75rem 0',
-  borderBottom: '1px solid #f3f4f6',
-  display: 'block',
+  );
 }

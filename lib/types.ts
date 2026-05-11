@@ -1,51 +1,79 @@
-export type Category = {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  emoji: string | null
-  created_at: string
+export type PlayerStatus = "PENDING_USER" | "ACTIVE_USER" | "REJECTED_USER";
+
+export type InscriptionStatus =
+  | "PENDING_CHAMPIONSHIP"
+  | "APPROVED"
+  | "REJECTED";
+
+export type MatchStatus = "SCHEDULED" | "COMPLETED" | "CANCELLED";
+
+export type ChampionshipStatus = "UPCOMING" | "IN_PROGRESS" | "COMPLETED";
+
+export interface Player {
+  id: string;
+  fullName: string;
+  playerId: string;
+  phone: string;
+  teamName: string;
+  teamLogo: string;
+  status: PlayerStatus;
+  createdAt: string;
 }
 
-export type Product = {
-  id: string
-  name: string
-  slug: string
-  description: string | null
-  price: number
-  category_id: string | null
-  images: string[]
-  features: string[]
-  specifications: Record<string, string>
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  categories?: Category
+export interface Team {
+  id: string;
+  name: string;
+  logo: string;
+  ownerPlayerId: string;
+  createdAt: string;
 }
 
-export type DeliveryZone = {
-  id: string
-  name: string
-  price: number
-  delay: string
-  is_active: boolean
+export interface Championship {
+  id: string;
+  name: string;
+  status: ChampionshipStatus;
+  createdAt: string;
 }
 
-export type ServiceOrder = {
-  id: string
-  order_number: string
-  service_type: string
-  service_detail: Record<string, string>
-  client_name: string
-  client_phone: string
-  client_email: string | null
-  address: string | null
-  zone_id: string | null
-  delivery_price: number | null
-  file_urls: string[]
-  notes: string | null
-  status: 'nouveau' | 'en_cours' | 'termine'
-  created_at: string
-  updated_at: string
-  delivery_zones?: DeliveryZone
+export interface ChampionshipInscription {
+  id: string;
+  championshipId: string;
+  playerId: string;
+  status: InscriptionStatus;
+  createdAt: string;
+}
+
+export interface Match {
+  id: string;
+  championshipId: string;
+  teamAId: string;
+  teamBId: string;
+  scoreA: number | null;
+  scoreB: number | null;
+  status: MatchStatus;
+  matchDay: number;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  playerId: string;
+  message: string;
+  type: string;
+  read: number;
+  createdAt: string;
+}
+
+export interface StandingRow {
+  teamId: string;
+  teamName: string;
+  teamLogo: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
 }
