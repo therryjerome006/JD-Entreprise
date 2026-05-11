@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { Product } from '@/lib/types'
 import ProductCard from '@/components/ProductCard'
 import { Truck, Shield, Headphones, Zap } from 'lucide-react'
+export const revalidate = 0
 
 async function getFeaturedProducts(): Promise<Product[]> {
   const { data } = await supabase

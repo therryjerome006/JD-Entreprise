@@ -154,7 +154,7 @@ export default function CatalogueContent() {
                       padding: '0.5rem 1rem',
                       borderRadius: '8px',
                       border: activeCategory === cat.slug ? 'none' : '1px solid #e5e7eb',
-                      background: activeCategory === cat.slug ? '#1a3a6b' : '#ffffff',
+                      background: activeCategory === cat.slug ? '#6b321a' : '#ffffff',
                       color: activeCategory === cat.slug ? '#ffffff' : '#4b5563',
                       fontSize: '0.82rem',
                       fontWeight: activeCategory === cat.slug ? 600 : 400,
